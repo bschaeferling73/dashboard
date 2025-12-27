@@ -14,8 +14,8 @@
     height:100vh; display:flex; flex-direction:column;
     justify-content:center; align-items:center;
   }
-  #time{ font-size:96px; font-weight:300; letter-spacing:1px; }
-  #date{ font-size:28px; margin-top:10px; opacity:.75; }
+  #time{ font-size:140px; font-weight:300; letter-spacing:3px; }
+  #date{ font-size:38px; margin-top:20px; opacity:.75; }
   .row{ display:flex; gap:28px; margin-top:34px; }
   .pill{
     border:1px solid rgba(255,255,255,.18);
@@ -130,7 +130,7 @@ async function loadWeather(){
 
 loadWeather();
 // optional: alle 60 Minuten neu laden (iPad als Dauer-Display)
-setInterval(loadWeather, 60 * 60 * 1000);
+setInterval(loadWeather, 12 * 60 * 60 * 1000);
 </script>
 
 </body>
