@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dashboard</title>
+<style>
+  body{
+    margin:0; background:#000; color:#eaeaea;
+    font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+    height:100vh; display:flex; flex-direction:column;
+    justify-content:center; align-items:center;
+  }
+  #time{ font-size:96px; font-weight:300; letter-spacing:1px; }
+  #date{ font-size:28px; margin-top:10px; opacity:.75; }
+  .row{ display:flex; gap:28px; margin-top:34px; }
+  .pill{
+    border:1px solid rgba(255,255,255,.18);
+    border-radius:18px; padding:14px 18px;
+    min-width:210px; text-align:center;
+    background:rgba(255,255,255,.04);
+  }
+  .label{ font-size:20px; opacity:.7; margin-bottom:10px; }
+  .val{ font-size:34px; font-weight:300; }
+  .small{ font-size:16px; opacity:.55; margin-top:14px; }
+</style>
+</head>
+<body>
+
+<div id="time">--:--</div>
+<div id="date">--</div>
+
+<div class="row">
+  <div class="pill">
+    <div class="label">Morgens</div>
+    <div class="val" id="morn">…</div>
+  </div>
+  <div class="pill">
+    <div class="label">Mittags</div>
+    <div class="val" id="noon">…</div>
+  </div>
+  <div class="pill">
+    <div class="label">Abends</div>
+    <div class="val" id="eve">…</div>
+  </div>
+</div>
+
+<div class="small" id="meta">Wetter lädt…</div>
+
+<script>
+/** === 1) Uhr / Datum === **/
+function updateTime(){
+  const now = new Date();
+  document.getElementById('time').innerText =
+    now.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('date').innerText =
+    now.toLocaleDateString('de-DE',{weekday:'long', day:'2-digit', month:'long'});
+}
+updateTime();
+setInterval(updateTime, 60000);
+
+/** === 2) Wetter (Open-Meteo) ===
+ *  Wir holen: weather_code + temperature_2m (stündlich) und greifen heute auf 08:00 / 13:00 / 19:00 zu.
+ *  Zeiten kannst du unten anpassen.
+ **/
+const CITY = "Böbingen an der Rems";     // <-- HIER ÄNDERN
+const HOURS = { morn: 7, noon: 12, eve: 17 }; // <-- Wunschzeiten (lokal)
+
+function iconFromWmo(code){
+  // grobe, „ruhige“ Emoji-Zuordnung nach WMO-Interpretationscodes
+  // (Open-Meteo verwendet diese Codes) :contentReference[oaicite:1]{index=1}
+  if (code === 0) return "☀️";
+  if ([1,2].includes(code)) return "🌤️";
+  if (code === 3) return "☁️";
+  if ([45,48].includes(code)) return "🌫️";
+  if ([51,53,55,56,57].includes(code)) return "🌦️";
+  if ([61,63,65,66,67].includes(code)) return "🌧️";
+  if ([71,73,75,77].includes(code)) return "🌨️";
+  if ([80,81,82].includes(code)) return "🌧️";
+  if ([95,96,99].includes(code)) return "⛈️";
+  return "🌡️";
+}
+
+function pickHourIndex(times, targetHour){
+  // times enthält ISO strings (lokal durch timezone=auto). Wir suchen heute die Zeile mit targetHour:00.
+  const today = new Date();
+  const y = today.getFullYear(), m = today.getMonth()+1, d = today.getDate();
+  const pad = n => String(n).padStart(2,'0');
+  const targetPrefix = `${y}-${pad(m)}-${pad(d)}T${pad(targetHour)}:00`;
+  return times.findIndex(t => t.startsWith(targetPrefix));
+}
+
+async function loadWeather(){
+  try{
+    // 2.1 Geocoding: Stadt -> lat/lon :contentReference[oaicite:2]{index=2}
+    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(CITY)}&count=1&language=de&format=json`;
+    const geo = await (await fetch(geoUrl)).json();
+    if (!geo.results || !geo.results.length) throw new Error("Ort nicht gefunden");
+    const loc = geo.results[0];
+
+    // 2.2 Forecast stündlich (temp + weather_code), timezone auto :contentReference[oaicite:3]{index=3}
+    const wxUrl = `https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&hourly=temperature_2m,weather_code&timezone=auto&forecast_days=1`;
+    const wx = await (await fetch(wxUrl)).json();
+
+    const times = wx.hourly.time;
+    const temps = wx.hourly.temperature_2m;
+    const codes = wx.hourly.weather_code;
+
+    const setSlot = (id, hour) => {
+      const idx = pickHourIndex(times, hour);
+      if (idx < 0) { document.getElementById(id).innerText = "–"; return; }
+      const t = Math.round(temps[idx]);
+      const c = codes[idx];
+      document.getElementById(id).innerText = `${iconFromWmo(c)} ${t}°`;
+    };
+
+    setSlot("morn", HOURS.morn);
+    setSlot("noon", HOURS.noon);
+    setSlot("eve",  HOURS.eve);
+
+    document.getElementById("meta").innerText =
+      `${loc.name}${loc.admin1 ? ", " + loc.admin1 : ""} • Heute • Aktualisiert: ${new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}`;
+  } catch (e){
+    document.getElementById("meta").innerText = `Wetter nicht verfügbar (${e.message})`;
+    document.getElementById("morn").innerText = "–";
+    document.getElementById("noon").innerText = "–";
+    document.getElementById("eve").innerText  = "–";
+  }
+}
+
+loadWeather();
+// optional: alle 60 Minuten neu laden (iPad als Dauer-Display)
+setInterval(loadWeather, 60 * 60 * 1000);
+</script>
+
+</body>
+</html>
