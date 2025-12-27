@@ -1,12 +1,11 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta name="apple-mobile-web-app-capable" content="yes">
+<meta charset="UTF-8" />
+<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Dashboard">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Dashboard</title>
 <style>
   body{
@@ -72,7 +71,6 @@ const HOURS = { morn: 7, noon: 12, eve: 17 }; // <-- Wunschzeiten (lokal)
 
 function iconFromWmo(code){
   // grobe, „ruhige“ Emoji-Zuordnung nach WMO-Interpretationscodes
-  // (Open-Meteo verwendet diese Codes) :contentReference[oaicite:1]{index=1}
   if (code === 0) return "☀️";
   if ([1,2].includes(code)) return "🌤️";
   if (code === 3) return "☁️";
@@ -96,13 +94,11 @@ function pickHourIndex(times, targetHour){
 
 async function loadWeather(){
   try{
-    // 2.1 Geocoding: Stadt -> lat/lon :contentReference[oaicite:2]{index=2}
     const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(CITY)}&count=1&language=de&format=json`;
     const geo = await (await fetch(geoUrl)).json();
     if (!geo.results || !geo.results.length) throw new Error("Ort nicht gefunden");
     const loc = geo.results[0];
 
-    // 2.2 Forecast stündlich (temp + weather_code), timezone auto :contentReference[oaicite:3]{index=3}
     const wxUrl = `https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&hourly=temperature_2m,weather_code&timezone=auto&forecast_days=1`;
     const wx = await (await fetch(wxUrl)).json();
 
@@ -139,4 +135,3 @@ setInterval(loadWeather, 60 * 60 * 1000);
 
 </body>
 </html>
-
